@@ -1,6 +1,6 @@
 /**
  *
- * Copyright (c) 2001, Frank Buß
+ * Copyright (c) 2001, Frank Buï¿½
  *
  * project: Formula
  * version: $Revision: 1.3 $ $Name:  $
@@ -15,6 +15,49 @@
 #include <iostream>
 #include <time.h>
 
+//Global RAM
+//Added by Mathew Friedrichs 7/12/18
+//As the parser is global for all Formula modules,
+//we can take advantage of that and allocate a fixed chunk of "RAM"
+//that any number of Formula modules can share.
+//The current allocation is enough for 10 seconds of audio data at 44100Hz.
+//The allocation may be lowered in the future as storing audio data
+//locally on the module makes much more sense.
+float GlobalParserRAM[441000];
+
+//Read Global RAM function
+//Takes in a float as a memory address
+//and returns the value stored in that address.
+//Will retun -10.0f on a "segfault".
+float ParserReadGRAM(float argument1)
+{
+	int pos = (int) argument1;
+	if (pos < 0 || pos > 440999) {
+		return -10.0f;
+	}
+	return GlobalParserRAM[pos];
+}
+
+//Write Global RAM function
+//Argument 1 is the value to be stored in the RAM.
+//Argument 2 is the address the value is to be written to.
+//Two modules can write to the same address without any crashing.
+//The behavior can be used to sequence variables between functions.
+//I would encourage using separate addresses and logical functions instead.
+//Will return -10.0f on a "segfault".
+float ParserWriteGRAM(float argument1, float argument2)
+{
+	int pos = (int) argument2;
+	if (pos < 0 || pos > 440999) {
+		return -10.0f;
+	}
+	GlobalParserRAM[pos] = argument1;
+	return 0.0f;
+}
+//Potential future work:
+//Add local RAM to each Formula module. For storing data in JSON!
+//Keep a list of used global RAM positions. For real sefault action!
+//run tolower or toupper on all strings.
 
 float ParserMax(float argument1, float argument2)
 {
@@ -55,6 +98,12 @@ Parser::Parser(string expression)
 	m_evaluator.setFunction("floor", floorf);
 	m_evaluator.setFunction("max", ParserMax);
 	m_evaluator.setFunction("min", ParserMin);
+	//Custom Parser Functions
+	//Read and Write to RAM
+	//RGR = Read Global Ram
+	m_evaluator.setFunction("rgr", ParserReadGRAM);
+	//WGR = Write Global Ram
+	m_evaluator.setFunction("wgr", ParserWriteGRAM);
 
 	setExpression(expression);
 }
